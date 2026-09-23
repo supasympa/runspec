@@ -169,3 +169,42 @@ describe("identity", () => {
 		).toEqual([]);
 	});
 });
+
+describe("supersession", () => {
+	const replacing = (id: string, supersedes: string): Decision => ({
+		...decision(id),
+		supersedes,
+	});
+
+	test("fails when a decision supersedes one that does not exist", () => {
+		expect(
+			codes({ decisions: [decision("D-001"), replacing("D-002", "D-999")] }),
+		).toEqual(["unknown-supersedes"]);
+	});
+
+	test("fails when a decision supersedes itself", () => {
+		expect(codes({ decisions: [replacing("D-001", "D-001")] })).toEqual([
+			"unknown-supersedes",
+		]);
+	});
+
+	test("fails on a reference to a superseded decision, naming its successor", () => {
+		const failures = runChecks(
+			input({
+				decisions: [decision("D-001"), replacing("D-002", "D-001")],
+				markers: [marker("tests/a.test.ts", "D-001")],
+			}),
+		);
+		expect(failures.map((f) => f.code)).toEqual(["superseded-decision"]);
+		expect(failures[0].message).toContain("D-002");
+	});
+
+	test("fails on a test for a superseded scenario", () => {
+		expect(
+			codes({
+				scenarios: [scenario("S-01", "superseded")],
+				markers: [marker("tests/a.test.ts", "S-01")],
+			}),
+		).toEqual(["superseded-scenario"]);
+	});
+});

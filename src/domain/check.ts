@@ -1,6 +1,7 @@
 import type { Decision } from "./decision.js";
 import { identityFailures, type Source } from "./identity.js";
 import type { Scenario } from "./scenario.js";
+import { successors, supersedesFailures } from "./supersession.js";
 import type { Marker } from "./traceability.js";
 
 export type CheckFailure = { code: string; message: string };
@@ -25,6 +26,12 @@ const scenarioMarkerFailure = (
 			message: `${marker.file} references ${marker.id}, which does not exist`,
 		};
 	}
+	if (scenario.status === "superseded") {
+		return {
+			code: "superseded-scenario",
+			message: `${marker.file} tests ${marker.id}, which is superseded. Remove the test or point it at the scenario that replaced it.`,
+		};
+	}
 	if (scenario.status !== "approved") {
 		return {
 			code: "unapproved-scenario",
@@ -34,22 +41,37 @@ const scenarioMarkerFailure = (
 	return null;
 };
 
+const decisionMarkerFailure = (
+	marker: Marker,
+	decisionIds: Set<string>,
+	replacedBy: Map<string, string>,
+): CheckFailure | null => {
+	if (!decisionIds.has(marker.id)) {
+		return {
+			code: "unknown-decision",
+			message: `${marker.file} references ${marker.id}, which does not exist`,
+		};
+	}
+	const successor = replacedBy.get(marker.id);
+	if (successor) {
+		return {
+			code: "superseded-decision",
+			message: `${marker.file} references ${marker.id}, which ${successor} supersedes. Check the code against ${successor} and update the marker.`,
+		};
+	}
+	return null;
+};
+
 const markerFailures = (input: CheckInput): CheckFailure[] => {
 	const scenarioById = new Map(input.scenarios.map((s) => [s.id, s]));
 	const decisionIds = new Set(input.decisions.map((d) => d.id));
-	return input.markers.flatMap((marker) => {
-		if (marker.kind === "scenario") {
-			return scenarioMarkerFailure(marker, scenarioById.get(marker.id)) ?? [];
-		}
-		return decisionIds.has(marker.id)
-			? []
-			: [
-					{
-						code: "unknown-decision",
-						message: `${marker.file} references ${marker.id}, which does not exist`,
-					},
-				];
-	});
+	const replacedBy = successors(input.decisions);
+	return input.markers.flatMap(
+		(marker) =>
+			(marker.kind === "scenario"
+				? scenarioMarkerFailure(marker, scenarioById.get(marker.id))
+				: decisionMarkerFailure(marker, decisionIds, replacedBy)) ?? [],
+	);
 };
 
 const coverageFailures = (input: CheckInput): CheckFailure[] => {
@@ -117,6 +139,7 @@ const unsealedFailures = (input: CheckInput): CheckFailure[] =>
 
 export const runChecks = (input: CheckInput): CheckFailure[] => [
 	...identityFailures(input.sources),
+	...supersedesFailures(input.decisions),
 	...markerFailures(input),
 	...coverageFailures(input),
 	...approvalFailures(input),
