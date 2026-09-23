@@ -1,4 +1,5 @@
 import type { Decision } from "./decision.js";
+import { identityFailures, type Source } from "./identity.js";
 import type { Scenario } from "./scenario.js";
 import type { Marker } from "./traceability.js";
 
@@ -10,6 +11,7 @@ export type CheckInput = {
 	markers: Marker[];
 	sealedHashes: Record<string, string>;
 	currentHashes: Record<string, string>;
+	sources: Source[];
 	hash: (text: string) => string;
 };
 
@@ -106,6 +108,7 @@ const sealFailures = (input: CheckInput): CheckFailure[] =>
 	});
 
 export const runChecks = (input: CheckInput): CheckFailure[] => [
+	...identityFailures(input.sources),
 	...markerFailures(input),
 	...coverageFailures(input),
 	...approvalFailures(input),

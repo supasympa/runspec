@@ -37,6 +37,7 @@ const input = (overrides: Partial<CheckInput>): CheckInput => ({
 	markers: [],
 	sealedHashes: {},
 	currentHashes: {},
+	sources: [],
 	hash,
 	...overrides,
 });
@@ -126,5 +127,39 @@ describe("approval", () => {
 				markers: [marker("tests/a.test.ts", "S-01")],
 			}),
 		).toEqual(["approval-without-hash"]);
+	});
+});
+
+describe("identity", () => {
+	test("fails when two files claim the same id", () => {
+		const failures = runChecks(
+			input({
+				sources: [
+					{ file: "scenarios/S-01.md", id: "S-01" },
+					{ file: "scenarios/copy.md", id: "S-01" },
+				],
+			}),
+		);
+		expect(failures.map((f) => f.code)).toContain("duplicate-id");
+		expect(failures.find((f) => f.code === "duplicate-id")?.message).toContain(
+			"scenarios/S-01.md, scenarios/copy.md",
+		);
+	});
+
+	test("fails when a file is not named after its id", () => {
+		expect(
+			codes({ sources: [{ file: "decisions/rule.md", id: "D-001" }] }),
+		).toEqual(["misnamed-file"]);
+	});
+
+	test("accepts files named after their ids", () => {
+		expect(
+			codes({
+				sources: [
+					{ file: "scenarios/S-01.md", id: "S-01" },
+					{ file: "decisions/D-001.md", id: "D-001" },
+				],
+			}),
+		).toEqual([]);
 	});
 });
