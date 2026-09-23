@@ -20,7 +20,7 @@ End by listing every draft awaiting my approval, and remind me that approving a 
 		description: "Draft or amend a scenario",
 		body: `$ARGUMENTS
 
-Draft or amend that scenario. Use \`runspec scenario add "<title>"\` for a new one, or edit the existing file under ${dirs.scenariosDir}/. Given/Then in the stakeholder's words, one behaviour per scenario, numbered Then steps. Never invent a rule the stakeholder has not stated. If something is unclear, ask me before writing.
+Draft or amend that scenario. Use \`runspec scenario add "<title>"\` for a new one, or edit the existing file under ${dirs.scenariosDir}/. Given/Then in the stakeholder's words, one behaviour per scenario, numbered Then steps. Never invent a rule the stakeholder has not stated. Changing an approved scenario withdraws its approval: \`runspec check\` fails until the stakeholder approves it again. If something is unclear, ask me before writing.
 `,
 	},
 	model: {
