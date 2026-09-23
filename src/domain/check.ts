@@ -107,10 +107,19 @@ const sealFailures = (input: CheckInput): CheckFailure[] =>
 		return [];
 	});
 
+const unsealedFailures = (input: CheckInput): CheckFailure[] =>
+	Object.keys(input.currentHashes)
+		.filter((path) => !(path in input.sealedHashes))
+		.map((path) => ({
+			code: "unsealed",
+			message: `${path} matches generatedGlobs but has never been sealed. Once it is generated from the model, run 'runspec seal'.`,
+		}));
+
 export const runChecks = (input: CheckInput): CheckFailure[] => [
 	...identityFailures(input.sources),
 	...markerFailures(input),
 	...coverageFailures(input),
 	...approvalFailures(input),
 	...sealFailures(input),
+	...unsealedFailures(input),
 ];

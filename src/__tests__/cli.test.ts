@@ -67,6 +67,7 @@ describe("the loop end to end", () => {
 				})}\n`,
 			);
 			writeText(join(cwd, "src", "gen", "schema.ts"), "export {}\n");
+			expect(runCheck(cwd)).toBe(1);
 			expect(runSeal(cwd)).toBe(0);
 			expect(runCheck(cwd)).toBe(0);
 

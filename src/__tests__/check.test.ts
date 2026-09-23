@@ -101,6 +101,12 @@ describe("runChecks", () => {
 		]);
 	});
 
+	test("fails on a generated file that was never sealed", () => {
+		expect(codes({ currentHashes: { "src/gen/new.ts": "ccc" } })).toEqual([
+			"unsealed",
+		]);
+	});
+
 	test("ignores draft scenarios without tests", () => {
 		expect(codes({ scenarios: [scenario("S-01", "draft")] })).toEqual([]);
 	});

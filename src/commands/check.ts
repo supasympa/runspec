@@ -56,7 +56,7 @@ export const runCheck = (cwd: string): number => {
 			(s) => s.status === "approved",
 		).length;
 		console.log(
-			`runspec: all clear. ${approved} approved scenario(s), ${markers.length} marker(s), ${generatedFiles.length} sealed file(s).`,
+			`runspec: all clear. ${approved} approved scenario(s), ${markers.length} marker(s), ${Object.keys(seals.value).length} sealed file(s).`,
 		);
 		return 0;
 	}
