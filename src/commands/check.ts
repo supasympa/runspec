@@ -43,6 +43,7 @@ export const runCheck = (cwd: string): number => {
 		markers,
 		sealedHashes: seals.value,
 		currentHashes,
+		hash: sha256,
 	});
 	for (const scenario of scenarios.items) {
 		for (const warning of scenarioWarnings(scenario)) {

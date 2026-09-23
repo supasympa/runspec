@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { fileExists, readText, writeText } from "../adapters/fs-store.js";
+import { sha256 } from "../adapters/hash.js";
 import {
 	approveScenario,
 	formatScenario,
@@ -29,6 +30,7 @@ const add = (cwd: string, args: string[]): number => {
 		title,
 		status: "draft",
 		approvedBy: null,
+		approvedHash: null,
 		body: "Given\nThen 1.",
 	};
 	const path = join(cwd, "scenarios", `${id}.md`);
@@ -77,7 +79,12 @@ const approve = (cwd: string, args: string[]): number => {
 		console.log(`${path}: ${parsed.error}`);
 		return 1;
 	}
-	writeText(path, formatScenario(approveScenario(parsed.value, by)));
+	writeText(
+		path,
+		formatScenario(
+			approveScenario(parsed.value, by, sha256(parsed.value.body)),
+		),
+	);
 	console.log(`${id} approved by ${by}. Its test now counts.`);
 	return 0;
 };

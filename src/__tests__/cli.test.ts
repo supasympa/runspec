@@ -97,6 +97,26 @@ describe("the loop end to end", () => {
 		}
 	});
 
+	test("editing an approved scenario fails until it is approved again", () => {
+		const cwd = makeProject();
+		try {
+			runInit(cwd);
+			runScenario(cwd, ["add", "no charge"]);
+			runScenario(cwd, ["approve", "S-01", "--by", "S. Okafor"]);
+			writeText(join(cwd, "tests", "s01.test.ts"), "// runspec: S-01\n");
+			expect(runCheck(cwd)).toBe(0);
+
+			const s01 = join(cwd, "scenarios", "S-01.md");
+			writeText(s01, readText(s01).replace("Then 1.", "Then 1. a charge"));
+			expect(runCheck(cwd)).toBe(1);
+
+			runScenario(cwd, ["approve", "S-01", "--by", "S. Okafor"]);
+			expect(runCheck(cwd)).toBe(0);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("check fails outside an initialised project", () => {
 		const cwd = makeProject();
 		try {
