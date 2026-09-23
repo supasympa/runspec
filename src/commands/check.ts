@@ -1,6 +1,7 @@
 import { readTextFiles } from "../adapters/fs-store.js";
 import { sha256 } from "../adapters/hash.js";
 import { runChecks } from "../domain/check.js";
+import { scenarioWarnings } from "../domain/scenario.js";
 import { findMarkers } from "../domain/traceability.js";
 import { loadConfig } from "./config.js";
 import { loadDecisions, loadScenarios, readSeals } from "./store.js";
@@ -43,6 +44,11 @@ export const runCheck = (cwd: string): number => {
 		sealedHashes: seals.value,
 		currentHashes,
 	});
+	for (const scenario of scenarios.items) {
+		for (const warning of scenarioWarnings(scenario)) {
+			console.log(`WARN ${warning}`);
+		}
+	}
 	if (failures.length === 0) {
 		const approved = scenarios.items.filter(
 			(s) => s.status === "approved",

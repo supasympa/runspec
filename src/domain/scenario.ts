@@ -65,3 +65,18 @@ export const nextScenarioId = (existing: string[]): string => {
 	}, 0);
 	return `S-${String(highest + 1).padStart(2, "0")}`;
 };
+
+const thenStepPattern = /^\s*(?:then\s+)?\d+\./gim;
+
+const thenStepCount = (body: string): number =>
+	[...body.matchAll(thenStepPattern)].length;
+
+export const scenarioWarnings = (scenario: Scenario): string[] => {
+	const steps = thenStepCount(scenario.body);
+	if (steps > 5) {
+		return [
+			`${scenario.id} covers ${steps} Then steps. One scenario is one behaviour: consider splitting it.`,
+		];
+	}
+	return [];
+};

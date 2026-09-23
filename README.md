@@ -20,7 +20,7 @@ Everything else, the implementation, the schema, the tickets, the governance doc
 ## The loop
 
 1. **Interview.** The agent talks to the stakeholder about the business. Nothing is written down yet.
-2. **Scenarios.** The agent drafts Given/Then examples. The stakeholder corrects and approves them.
+2. **Scenarios.** The agent drafts Given/Then examples. The stakeholder corrects and approves them. A scenario is one behaviour: if a draft needs more than a handful of Then steps, the interview splits it, and `runspec check` warns when a scenario has grown past five.
 3. **Model.** The agent drafts types and rules. The engineer reviews.
 4. **Decisions.** Every human correction becomes a numbered record, drafted by the agent, approved by the human.
 5. **Tests.** One test per approved scenario, each carrying a `runspec: S-NN` marker. Assert exactly what the scenario says, nothing else.

@@ -5,6 +5,8 @@ export const commandSpecs = (): Record<string, CommandSpec> => ({
 		description: "Interview the stakeholder and draft scenarios",
 		body: `Talk with me about the business area we are modelling. Ask one question at a time: what exists, what can happen, what must hold. Surface the awkward cases nobody mentions. Do not write any document.
 
+A scenario is one behaviour. If a draft needs more than a handful of Then steps, split it into two scenarios. If the conversation starts spanning two different jobs, say so and propose splitting the work into separate interviews before drafting anything.
+
 When a behaviour is clear, run \`runspec scenario add "<short title>"\` and write the Given/Then body into the file it names, in my words. One behaviour per scenario, numbered Then steps.
 
 End by listing every draft awaiting my approval, and remind me that approving a scenario approves its test.

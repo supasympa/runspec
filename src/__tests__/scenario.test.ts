@@ -4,6 +4,7 @@ import {
 	formatScenario,
 	nextScenarioId,
 	parseScenario,
+	scenarioWarnings,
 } from "../domain/scenario.js";
 
 const example = `# S-03: sickness cancellation
@@ -55,6 +56,28 @@ describe("approveScenario", () => {
 		expect(approved.status).toBe("approved");
 		expect(approved.approvedBy).toBe("L. Barclay");
 		expect(parsed.value.approvedBy).toBe("S. Okafor, 22 Sep 2026");
+	});
+});
+
+describe("scenarioWarnings", () => {
+	test("a scenario with many Then steps warns about scope", () => {
+		const parsed = parseScenario(
+			"# S-01: big\n\nStatus: draft\n\nGiven a thing\nThen 1. a\n 2. b\n 3. c\n 4. d\n 5. e\n 6. f",
+		);
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok) {
+			return;
+		}
+		expect(scenarioWarnings(parsed.value).length).toBe(1);
+	});
+
+	test("a single-behaviour scenario stays quiet", () => {
+		const parsed = parseScenario(example);
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok) {
+			return;
+		}
+		expect(scenarioWarnings(parsed.value)).toEqual([]);
 	});
 });
 
