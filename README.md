@@ -46,6 +46,7 @@ runspec scenario approve S-03 --by "S. Okafor"
 
 Status: approved
 Approved by: S. Okafor
+Approved hash: 8289d9988f0c26da4db8ad5bb256da589cefeb8ceb9c5ea08e88f007b33bb753
 
 Given a patient cancels because of sickness
 Then 1. the appointment is cancelled
@@ -59,7 +60,7 @@ runspec decision add "Appointments cannot be changed after check-in" \
   --by "S. Okafor" --because "practitioners need a stable list once their session starts"
 ```
 
-That's `decisions/D-001.md`, and it never gets deleted. If the rule changes later, a new decision supersedes it.
+That's `decisions/D-001.md`, dated the day it was recorded, and it never gets deleted. If the rule changes later, a new decision supersedes it.
 
 The agent generates one test per approved scenario:
 
@@ -90,12 +91,12 @@ Or run it directly from a checkout: `bun /path/to/runspec/src/cli.ts check`.
 
 | Command | What it does |
 | --- | --- |
-| `runspec init` | Creates `scenarios/`, `decisions/`, `runspec.json`, `AGENTS.md` and six prompts in `commands/` |
+| `runspec init` | Creates `scenarios/`, `decisions/`, `runspec.json`, `AGENTS.md` and six prompts in `commands/`. An existing `AGENTS.md` gets a runspec section added, not replaced |
 | `runspec install <agent>` | Adapts the prompts for claude, cursor, gemini or codex |
 | `runspec scenario add <title>` | Drafts the next S-NN scenario |
 | `runspec scenario list` | Lists scenarios with status |
-| `runspec scenario approve <id> --by <who>` | Approves a scenario. Approving it approves its test. |
-| `runspec decision add <title> --by <who> --because <why> [--supersedes <id>]` | Records a D-NNN decision |
+| `runspec scenario approve <id> --by <who>` | Approves a scenario and records a hash of its body. Approving it approves its test. |
+| `runspec decision add <title> --by <who> --because <why> [--supersedes <id>]` | Records a dated D-NNN decision |
 | `runspec decision list` | Lists decisions |
 | `runspec seal` | Records hashes of generated files |
 | `runspec check` | Verifies traceability and seals. Run before every commit. |
@@ -126,6 +127,18 @@ Point `testGlobs` at your tests and `generatedGlobs` at files your agent generat
 }
 ```
 
+The folders default to `scenarios/`, `decisions/` and `commands/` at the project root. A project that already keeps its records somewhere can say where, as paths inside the project. Write `runspec.json` before `runspec init` and init uses them:
+
+```json
+{
+  "testGlobs": ["tests/**"],
+  "generatedGlobs": [],
+  "scenariosDir": "docs/scenarios",
+  "decisionsDir": "docs/adr",
+  "commandsDir": "docs/runspec"
+}
+```
+
 ## Any agent
 
 The process lives in `AGENTS.md`, the convention most coding agents already read, plus six prompts in `commands/` as plain markdown: `interview`, `scenario`, `model`, `tests`, `decide`, `ask`. Any agent that can read a repository can follow them.
@@ -134,7 +147,7 @@ The process lives in `AGENTS.md`, the convention most coding agents already read
 
 | Agent | What install does |
 | --- | --- |
-| claude | `CLAUDE.md` plus the six prompts in `.claude/commands/` with slash-command frontmatter |
+| claude | `CLAUDE.md` (or a runspec section added to an existing one) plus the six prompts in `.claude/commands/` with slash-command frontmatter |
 | cursor | `.cursor/rules/runspec.mdc` |
 | gemini | `GEMINI.md` |
 | codex | Nothing. `AGENTS.md` is native. |
@@ -145,12 +158,24 @@ The generic files are the source of truth. Installs are copies, so there's nothi
 
 `runspec check` fails on:
 
-- a test referencing a missing or unapproved scenario
+- a test referencing a missing, unapproved or superseded scenario
 - an approved scenario with no test
-- a reference to a missing decision
+- an approved scenario whose text has changed since it was approved
+- a reference to a missing decision, or to one that has been superseded
+- a decision that supersedes one that does not exist
+- two files claiming the same id, or a file not named after its id
 - a generated file that differs from its sealed hash, which means someone hand-edited it
+- a generated file that has never been sealed
 
-That last one is the point of the tool. Generated files are outputs: if someone edits one directly, it quietly becomes the source of truth and the model drifts from reality. The seal makes that impossible to miss. The only way past a failed check is to change the model, regenerate, then `runspec seal`.
+The approval hash and the seal are the point of the tool. An approved scenario is a promise the stakeholder made, so if its words change, the promise has to be made again: `runspec scenario approve` records the new hash. Generated files are outputs: if someone edits one directly, it quietly becomes the source of truth and the model drifts from reality. The only way past a failed seal is to change the model, regenerate, then `runspec seal`.
+
+## What check can and can't prove
+
+`runspec check` proves the records link up and haven't changed since they were approved or sealed. It can't prove who approved them. `Approved by:` is a line of text, and anyone with write access, an agent included, can write it and run `runspec scenario approve` or `runspec seal` themselves.
+
+So the guarantee comes from review, not from the tool. Treat a change to the scenarios folder, the decisions folder or `.runspec/seals.json` as a request for the stakeholder's sign-off: require their review on those paths, for example with a `CODEOWNERS` entry. A diff that re-approves a scenario or re-seals a file is exactly the diff somebody should read.
+
+It also doesn't check that a test asserts what its scenario says. The marker says which scenario a test is for; whether it tests it is for the reviewer.
 
 ## What runspec is not
 

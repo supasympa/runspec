@@ -37,6 +37,23 @@ describe("parseDecision", () => {
 		expect(parseDecision(formatDecision(parsed.value))).toEqual(parsed);
 	});
 
+	test("reads and writes the date it was decided", () => {
+		const dated = example.replace("Because:", "Date: 2026-09-22\nBecause:");
+		const parsed = parseDecision(dated);
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok) {
+			return;
+		}
+		expect(parsed.value.date).toBe("2026-09-22");
+		expect(formatDecision(parsed.value)).toContain("Date: 2026-09-22");
+		expect(parseDecision(formatDecision(parsed.value))).toEqual(parsed);
+	});
+
+	test("reads an undated record written before dates were kept", () => {
+		const parsed = parseDecision(example);
+		expect(parsed.ok && parsed.value.date).toBeNull();
+	});
+
 	test("rejects a missing Because line", () => {
 		const broken = "# D-001: rule\n\nDecided by: someone";
 		expect(parseDecision(broken).ok).toBe(false);

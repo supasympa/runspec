@@ -7,12 +7,32 @@ export type Scenario = {
 	title: string;
 	status: ScenarioStatus;
 	approvedBy: string | null;
+	approvedHash: string | null;
 	body: string;
 };
 
+type Header = Pick<Scenario, "status" | "approvedBy" | "approvedHash">;
+
 const headingPattern = /^#\s+(S-\d+):\s*(.+)$/;
-const statusPattern = /^Status:\s*(draft|approved|superseded)\s*$/;
-const approvedByPattern = /^Approved by:\s*(.+)$/;
+
+const headerFields: [RegExp, (value: string) => Partial<Header>][] = [
+	[
+		/^Status:\s*(draft|approved|superseded)\s*$/,
+		(value) => ({ status: value as ScenarioStatus }),
+	],
+	[/^Approved by:\s*(.+)$/, (value) => ({ approvedBy: value })],
+	[/^Approved hash:\s*([0-9a-f]+)\s*$/, (value) => ({ approvedHash: value })],
+];
+
+const readHeaderLine = (line: string): Partial<Header> | null => {
+	for (const [pattern, read] of headerFields) {
+		const match = line.match(pattern);
+		if (match) {
+			return read(match[1]);
+		}
+	}
+	return null;
+};
 
 export const parseScenario = (content: string): Result<Scenario, string> => {
 	const lines = content.split("\n");
@@ -20,42 +40,46 @@ export const parseScenario = (content: string): Result<Scenario, string> => {
 	if (!heading) {
 		return err("first line must be '# S-NN: title'");
 	}
-	let status: ScenarioStatus = "draft";
-	let approvedBy: string | null = null;
+	let header: Header = {
+		status: "draft",
+		approvedBy: null,
+		approvedHash: null,
+	};
 	const body: string[] = [];
 	for (const line of lines.slice(1)) {
-		const statusMatch = line.match(statusPattern);
-		if (statusMatch) {
-			status = statusMatch[1] as ScenarioStatus;
-			continue;
+		const field = readHeaderLine(line);
+		if (field) {
+			header = { ...header, ...field };
+		} else {
+			body.push(line);
 		}
-		const approvedMatch = line.match(approvedByPattern);
-		if (approvedMatch) {
-			approvedBy = approvedMatch[1];
-			continue;
-		}
-		body.push(line);
 	}
 	return ok({
 		id: heading[1],
 		title: heading[2].trim(),
-		status,
-		approvedBy,
+		...header,
 		body: body.join("\n").trim(),
 	});
 };
 
 export const formatScenario = (scenario: Scenario): string => {
-	const approval = scenario.approvedBy
-		? `\nApproved by: ${scenario.approvedBy}`
-		: "";
+	const approval = [
+		scenario.approvedBy ? `\nApproved by: ${scenario.approvedBy}` : "",
+		scenario.approvedHash ? `\nApproved hash: ${scenario.approvedHash}` : "",
+	].join("");
 	return `# ${scenario.id}: ${scenario.title}\n\nStatus: ${scenario.status}${approval}\n\n${scenario.body}\n`;
 };
 
-export const approveScenario = (scenario: Scenario, by: string): Scenario => ({
+/** `bodyHash` is the hash of `scenario.body`; `runspec check` compares against it. */
+export const approveScenario = (
+	scenario: Scenario,
+	by: string,
+	bodyHash: string,
+): Scenario => ({
 	...scenario,
 	status: "approved",
 	approvedBy: by,
+	approvedHash: bodyHash,
 });
 
 export const nextScenarioId = (existing: string[]): string => {

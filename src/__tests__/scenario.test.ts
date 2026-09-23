@@ -40,6 +40,22 @@ describe("parseScenario", () => {
 		expect(reparsed).toEqual(parsed);
 	});
 
+	test("reads and writes the hash taken at approval", () => {
+		const parsed = parseScenario(
+			`${example}\n`.replace(
+				"Approved by: S. Okafor, 22 Sep 2026",
+				"Approved by: S. Okafor\nApproved hash: 9f86d081",
+			),
+		);
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok) {
+			return;
+		}
+		expect(parsed.value.approvedHash).toBe("9f86d081");
+		expect(parsed.value.body).not.toContain("Approved hash");
+		expect(formatScenario(parsed.value)).toContain("Approved hash: 9f86d081");
+	});
+
 	test("rejects a missing heading", () => {
 		expect(parseScenario("Status: draft").ok).toBe(false);
 	});
@@ -52,9 +68,10 @@ describe("approveScenario", () => {
 		if (!parsed.ok) {
 			return;
 		}
-		const approved = approveScenario(parsed.value, "L. Barclay");
+		const approved = approveScenario(parsed.value, "L. Barclay", "abc123");
 		expect(approved.status).toBe("approved");
 		expect(approved.approvedBy).toBe("L. Barclay");
+		expect(approved.approvedHash).toBe("abc123");
 		expect(parsed.value.approvedBy).toBe("S. Okafor, 22 Sep 2026");
 	});
 });

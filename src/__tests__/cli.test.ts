@@ -51,6 +51,9 @@ describe("the loop end to end", () => {
 					"stable list",
 				]),
 			).toBe(0);
+			expect(readText(join(cwd, "decisions", "D-001.md"))).toMatch(
+				/^Date: \d{4}-\d{2}-\d{2}$/m,
+			);
 			writeText(join(cwd, "tests", "d001.test.ts"), "// runspec: D-001\n");
 			expect(runCheck(cwd)).toBe(0);
 
@@ -67,6 +70,7 @@ describe("the loop end to end", () => {
 				})}\n`,
 			);
 			writeText(join(cwd, "src", "gen", "schema.ts"), "export {}\n");
+			expect(runCheck(cwd)).toBe(1);
 			expect(runSeal(cwd)).toBe(0);
 			expect(runCheck(cwd)).toBe(0);
 
@@ -92,6 +96,100 @@ describe("the loop end to end", () => {
 			expect(fileExists(join(cwd, "CLAUDE.md"))).toBe(true);
 			expect(runInstall(cwd, ["claude"])).toBe(0);
 			expect(runInstall(cwd, ["unknown-agent"])).toBe(1);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("editing an approved scenario fails until it is approved again", () => {
+		const cwd = makeProject();
+		try {
+			runInit(cwd);
+			runScenario(cwd, ["add", "no charge"]);
+			runScenario(cwd, ["approve", "S-01", "--by", "S. Okafor"]);
+			writeText(join(cwd, "tests", "s01.test.ts"), "// runspec: S-01\n");
+			expect(runCheck(cwd)).toBe(0);
+
+			const s01 = join(cwd, "scenarios", "S-01.md");
+			writeText(s01, readText(s01).replace("Then 1.", "Then 1. a charge"));
+			expect(runCheck(cwd)).toBe(1);
+
+			runScenario(cwd, ["approve", "S-01", "--by", "S. Okafor"]);
+			expect(runCheck(cwd)).toBe(0);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("folders can live wherever runspec.json says", () => {
+		const cwd = makeProject();
+		try {
+			writeText(
+				join(cwd, "runspec.json"),
+				JSON.stringify({
+					testGlobs: ["tests/**"],
+					generatedGlobs: [],
+					scenariosDir: "docs/scenarios",
+					decisionsDir: "docs/adr",
+					commandsDir: "docs/runspec",
+				}),
+			);
+			expect(runInit(cwd)).toBe(0);
+			expect(fileExists(join(cwd, "docs", "runspec", "interview.md"))).toBe(
+				true,
+			);
+			expect(readText(join(cwd, "AGENTS.md"))).toContain("docs/scenarios/");
+
+			runScenario(cwd, ["add", "no charge"]);
+			runScenario(cwd, ["approve", "S-01", "--by", "S. Okafor"]);
+			runDecision(cwd, [
+				"add",
+				"rule",
+				"--by",
+				"S. Okafor",
+				"--because",
+				"why",
+			]);
+			expect(fileExists(join(cwd, "docs", "scenarios", "S-01.md"))).toBe(true);
+			expect(fileExists(join(cwd, "docs", "adr", "D-001.md"))).toBe(true);
+			for (const dir of ["scenarios", "decisions", "commands"]) {
+				expect(fileExists(join(cwd, dir))).toBe(false);
+			}
+
+			writeText(
+				join(cwd, "tests", "s01.test.ts"),
+				"// runspec: S-01\n// runspec: D-001\n",
+			);
+			expect(runCheck(cwd)).toBe(0);
+			expect(runInstall(cwd, ["claude"])).toBe(0);
+			expect(readText(join(cwd, ".claude", "commands", "model.md"))).toContain(
+				"docs/scenarios/",
+			);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("an existing AGENTS.md and CLAUDE.md are added to, once", () => {
+		const cwd = makeProject();
+		try {
+			writeText(join(cwd, "AGENTS.md"), "# Our rules\n\nBe kind.\n");
+			writeText(join(cwd, "CLAUDE.md"), "# Claude\n\nSee AGENTS.md.\n");
+			runInit(cwd);
+			runInit(cwd);
+			runInstall(cwd, ["claude"]);
+			runInstall(cwd, ["claude"]);
+
+			const agents = readText(join(cwd, "AGENTS.md"));
+			expect(agents.startsWith("# Our rules\n\nBe kind.\n")).toBe(true);
+			expect(agents).toContain("## runspec: the spec that runs");
+			expect(agents).toContain("### The loop");
+			expect(agents.split("<!-- runspec -->").length).toBe(2);
+
+			const claude = readText(join(cwd, "CLAUDE.md"));
+			expect(claude.startsWith("# Claude\n\nSee AGENTS.md.\n")).toBe(true);
+			expect(claude).toContain("Run `runspec check` before every commit.");
+			expect(claude.split("<!-- runspec -->").length).toBe(2);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}

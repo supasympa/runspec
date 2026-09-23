@@ -1,11 +1,20 @@
-export const agentsMd = `# runspec: the spec that runs
+import type { RunspecConfig } from "../config.js";
+
+export type RunspecDirs = Pick<
+	RunspecConfig,
+	"scenariosDir" | "decisionsDir" | "commandsDir"
+>;
+
+export const agentsMd = (
+	dirs: RunspecDirs,
+): string => `# runspec: the spec that runs
 
 This project uses runspec. The spec is not a document. It is four artefacts that run:
 
-- \`scenarios/\`: Given/Then examples owned by the stakeholder. Approving a scenario approves its test.
+- \`${dirs.scenariosDir}/\`: Given/Then examples owned by the stakeholder. Approving a scenario approves its test.
 - The model: types and rules in this codebase, owned by the engineer.
 - Tests: one per approved scenario, each carrying a \`runspec: S-NN\` marker comment.
-- \`decisions/\`: D-NNN records of who decided what and why. Append-only: superseded, never deleted.
+- \`${dirs.decisionsDir}/\`: D-NNN records of who decided what and why. Append-only: superseded, never deleted.
 
 ## The loop
 
@@ -25,8 +34,25 @@ This project uses runspec. The spec is not a document. It is four artefacts that
 
 ## Commands for agents
 
-Six prompts live in \`commands/\` as plain markdown: \`interview\`, \`scenario\`, \`model\`, \`tests\`, \`decide\`, \`ask\`. Read and follow the one that matches the task. \`runspec install claude|cursor|gemini\` copies them into the native format for those agents. Anything that reads this file needs no install.
+Six prompts live in \`${dirs.commandsDir}/\` as plain markdown: \`interview\`, \`scenario\`, \`model\`, \`tests\`, \`decide\`, \`ask\`. Read and follow the one that matches the task. \`runspec install claude|cursor|gemini\` copies them into the native format for those agents. Anything that reads this file needs no install.
 `;
 
 export const pointerMd = `This project uses runspec. Read AGENTS.md and follow the process described there. Run \`runspec check\` before every commit.
 `;
+
+const sectionMarker = "<!-- runspec -->";
+
+const demoteHeadings = (markdown: string): string =>
+	markdown.replace(/^(#+) /gm, "#$1 ");
+
+/**
+ * Adds the runspec section to an agent file somebody else wrote, leaving
+ * their text untouched. Null when the section is already there.
+ */
+export const withRunspecSection = (
+	existing: string,
+	section: string,
+): string | null =>
+	existing.includes(sectionMarker)
+		? null
+		: `${existing.trimEnd()}\n\n${sectionMarker}\n${demoteHeadings(section)}`;

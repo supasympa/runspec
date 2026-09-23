@@ -1,5 +1,7 @@
 import type { Decision } from "./decision.js";
+import { identityFailures, type Source } from "./identity.js";
 import type { Scenario } from "./scenario.js";
+import { successors, supersedesFailures } from "./supersession.js";
 import type { Marker } from "./traceability.js";
 
 export type CheckFailure = { code: string; message: string };
@@ -10,61 +12,137 @@ export type CheckInput = {
 	markers: Marker[];
 	sealedHashes: Record<string, string>;
 	currentHashes: Record<string, string>;
+	sources: Source[];
+	hash: (text: string) => string;
 };
 
-export const runChecks = (input: CheckInput): CheckFailure[] => {
-	const failures: CheckFailure[] = [];
+const scenarioMarkerFailure = (
+	marker: Marker,
+	scenario: Scenario | undefined,
+): CheckFailure | null => {
+	if (!scenario) {
+		return {
+			code: "unknown-scenario",
+			message: `${marker.file} references ${marker.id}, which does not exist`,
+		};
+	}
+	if (scenario.status === "superseded") {
+		return {
+			code: "superseded-scenario",
+			message: `${marker.file} tests ${marker.id}, which is superseded. Remove the test or point it at the scenario that replaced it.`,
+		};
+	}
+	if (scenario.status !== "approved") {
+		return {
+			code: "unapproved-scenario",
+			message: `${marker.file} tests ${marker.id}, which is ${scenario.status}. Approve the scenario before its test counts.`,
+		};
+	}
+	return null;
+};
+
+const decisionMarkerFailure = (
+	marker: Marker,
+	decisionIds: Set<string>,
+	replacedBy: Map<string, string>,
+): CheckFailure | null => {
+	if (!decisionIds.has(marker.id)) {
+		return {
+			code: "unknown-decision",
+			message: `${marker.file} references ${marker.id}, which does not exist`,
+		};
+	}
+	const successor = replacedBy.get(marker.id);
+	if (successor) {
+		return {
+			code: "superseded-decision",
+			message: `${marker.file} references ${marker.id}, which ${successor} supersedes. Check the code against ${successor} and update the marker.`,
+		};
+	}
+	return null;
+};
+
+const markerFailures = (input: CheckInput): CheckFailure[] => {
 	const scenarioById = new Map(input.scenarios.map((s) => [s.id, s]));
 	const decisionIds = new Set(input.decisions.map((d) => d.id));
-	const testedScenarios = new Set(
+	const replacedBy = successors(input.decisions);
+	return input.markers.flatMap(
+		(marker) =>
+			(marker.kind === "scenario"
+				? scenarioMarkerFailure(marker, scenarioById.get(marker.id))
+				: decisionMarkerFailure(marker, decisionIds, replacedBy)) ?? [],
+	);
+};
+
+const coverageFailures = (input: CheckInput): CheckFailure[] => {
+	const tested = new Set(
 		input.markers.filter((m) => m.kind === "scenario").map((m) => m.id),
 	);
+	return input.scenarios
+		.filter((s) => s.status === "approved" && !tested.has(s.id))
+		.map((s) => ({
+			code: "missing-test",
+			message: `${s.id} is approved but no test carries a 'runspec: ${s.id}' marker`,
+		}));
+};
 
-	for (const marker of input.markers) {
-		if (marker.kind === "scenario") {
-			const scenario = scenarioById.get(marker.id);
-			if (!scenario) {
-				failures.push({
-					code: "unknown-scenario",
-					message: `${marker.file} references ${marker.id}, which does not exist`,
-				});
-			} else if (scenario.status !== "approved") {
-				failures.push({
-					code: "unapproved-scenario",
-					message: `${marker.file} tests ${marker.id}, which is ${scenario.status}. Approve the scenario before its test counts.`,
-				});
-			}
-		} else if (!decisionIds.has(marker.id)) {
-			failures.push({
-				code: "unknown-decision",
-				message: `${marker.file} references ${marker.id}, which does not exist`,
-			});
-		}
+const approvalFailure = (
+	scenario: Scenario,
+	hash: CheckInput["hash"],
+): CheckFailure | null => {
+	const reapprove = `If the change is agreed, 'runspec scenario approve ${scenario.id} --by <who>' again.`;
+	if (scenario.approvedHash === null) {
+		return {
+			code: "approval-without-hash",
+			message: `${scenario.id} is marked approved but carries no approval hash, so an edit since approval cannot be ruled out. ${reapprove}`,
+		};
 	}
-
-	for (const scenario of input.scenarios) {
-		if (scenario.status === "approved" && !testedScenarios.has(scenario.id)) {
-			failures.push({
-				code: "missing-test",
-				message: `${scenario.id} is approved but no test carries a 'runspec: ${scenario.id}' marker`,
-			});
-		}
+	if (scenario.approvedHash !== hash(scenario.body)) {
+		return {
+			code: "edited-after-approval",
+			message: `${scenario.id} has changed since ${scenario.approvedBy ?? "its approver"} approved it. ${reapprove}`,
+		};
 	}
+	return null;
+};
 
-	for (const [path, sealed] of Object.entries(input.sealedHashes)) {
+const approvalFailures = (input: CheckInput): CheckFailure[] =>
+	input.scenarios
+		.filter((s) => s.status === "approved")
+		.flatMap((s) => approvalFailure(s, input.hash) ?? []);
+
+const sealFailures = (input: CheckInput): CheckFailure[] =>
+	Object.entries(input.sealedHashes).flatMap(([path, sealed]) => {
 		const current = input.currentHashes[path];
 		if (current === undefined) {
-			failures.push({
+			return {
 				code: "generated-file-missing",
 				message: `${path} is sealed but missing. Regenerate it from the model, then 'runspec seal'.`,
-			});
-		} else if (current !== sealed) {
-			failures.push({
+			};
+		}
+		if (current !== sealed) {
+			return {
 				code: "hand-edit",
 				message: `${path} differs from its sealed hash. Generated files are outputs: change the model, regenerate, then 'runspec seal'.`,
-			});
+			};
 		}
-	}
+		return [];
+	});
 
-	return failures;
-};
+const unsealedFailures = (input: CheckInput): CheckFailure[] =>
+	Object.keys(input.currentHashes)
+		.filter((path) => !(path in input.sealedHashes))
+		.map((path) => ({
+			code: "unsealed",
+			message: `${path} matches generatedGlobs but has never been sealed. Once it is generated from the model, run 'runspec seal'.`,
+		}));
+
+export const runChecks = (input: CheckInput): CheckFailure[] => [
+	...identityFailures(input.sources),
+	...supersedesFailures(input.decisions),
+	...markerFailures(input),
+	...coverageFailures(input),
+	...approvalFailures(input),
+	...sealFailures(input),
+	...unsealedFailures(input),
+];

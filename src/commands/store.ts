@@ -1,33 +1,41 @@
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { fileExists, listMarkdown, readText } from "../adapters/fs-store.js";
 import { type Decision, parseDecision } from "../domain/decision.js";
+import type { Source } from "../domain/identity.js";
 import { err, ok, type Result } from "../domain/result.js";
 import { parseScenario, type Scenario } from "../domain/scenario.js";
+import type { RunspecConfig } from "./config.js";
 
-export type LoadResult<T> = { items: T[]; errors: string[] };
+export type LoadResult<T> = { items: T[]; errors: string[]; sources: Source[] };
 
-const load = <T>(
+const load = <T extends { id: string }>(
+	cwd: string,
 	dir: string,
 	parse: (content: string) => Result<T, string>,
 ): LoadResult<T> => {
-	const items: T[] = [];
-	const errors: string[] = [];
-	for (const path of listMarkdown(dir)) {
+	const loaded: LoadResult<T> = { items: [], errors: [], sources: [] };
+	for (const path of listMarkdown(join(cwd, dir))) {
+		const file = relative(cwd, path);
 		const result = parse(readText(path));
 		if (result.ok) {
-			items.push(result.value);
+			loaded.items.push(result.value);
+			loaded.sources.push({ file, id: result.value.id });
 		} else {
-			errors.push(`${path}: ${result.error}`);
+			loaded.errors.push(`${file}: ${result.error}`);
 		}
 	}
-	return { items, errors };
+	return loaded;
 };
 
-export const loadScenarios = (cwd: string): LoadResult<Scenario> =>
-	load(join(cwd, "scenarios"), parseScenario);
+export const loadScenarios = (
+	cwd: string,
+	config: Pick<RunspecConfig, "scenariosDir">,
+): LoadResult<Scenario> => load(cwd, config.scenariosDir, parseScenario);
 
-export const loadDecisions = (cwd: string): LoadResult<Decision> =>
-	load(join(cwd, "decisions"), parseDecision);
+export const loadDecisions = (
+	cwd: string,
+	config: Pick<RunspecConfig, "decisionsDir">,
+): LoadResult<Decision> => load(cwd, config.decisionsDir, parseDecision);
 
 export const readSeals = (
 	cwd: string,
