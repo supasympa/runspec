@@ -12,8 +12,8 @@ export const runCheck = (cwd: string): number => {
 		console.log(config.error);
 		return 1;
 	}
-	const scenarios = loadScenarios(cwd);
-	const decisions = loadDecisions(cwd);
+	const scenarios = loadScenarios(cwd, config.value);
+	const decisions = loadDecisions(cwd, config.value);
 	const parseErrors = [...scenarios.errors, ...decisions.errors];
 	if (parseErrors.length > 0) {
 		for (const error of parseErrors) {

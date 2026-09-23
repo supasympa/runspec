@@ -121,6 +121,55 @@ describe("the loop end to end", () => {
 		}
 	});
 
+	test("folders can live wherever runspec.json says", () => {
+		const cwd = makeProject();
+		try {
+			writeText(
+				join(cwd, "runspec.json"),
+				JSON.stringify({
+					testGlobs: ["tests/**"],
+					generatedGlobs: [],
+					scenariosDir: "docs/scenarios",
+					decisionsDir: "docs/adr",
+					commandsDir: "docs/runspec",
+				}),
+			);
+			expect(runInit(cwd)).toBe(0);
+			expect(fileExists(join(cwd, "docs", "runspec", "interview.md"))).toBe(
+				true,
+			);
+			expect(readText(join(cwd, "AGENTS.md"))).toContain("docs/scenarios/");
+
+			runScenario(cwd, ["add", "no charge"]);
+			runScenario(cwd, ["approve", "S-01", "--by", "S. Okafor"]);
+			runDecision(cwd, [
+				"add",
+				"rule",
+				"--by",
+				"S. Okafor",
+				"--because",
+				"why",
+			]);
+			expect(fileExists(join(cwd, "docs", "scenarios", "S-01.md"))).toBe(true);
+			expect(fileExists(join(cwd, "docs", "adr", "D-001.md"))).toBe(true);
+			for (const dir of ["scenarios", "decisions", "commands"]) {
+				expect(fileExists(join(cwd, dir))).toBe(false);
+			}
+
+			writeText(
+				join(cwd, "tests", "s01.test.ts"),
+				"// runspec: S-01\n// runspec: D-001\n",
+			);
+			expect(runCheck(cwd)).toBe(0);
+			expect(runInstall(cwd, ["claude"])).toBe(0);
+			expect(readText(join(cwd, ".claude", "commands", "model.md"))).toContain(
+				"docs/scenarios/",
+			);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("check fails outside an initialised project", () => {
 		const cwd = makeProject();
 		try {

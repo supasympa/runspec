@@ -1,6 +1,10 @@
+import type { RunspecDirs } from "./agent-md.js";
+
 export type CommandSpec = { description: string; body: string };
 
-export const commandSpecs = (): Record<string, CommandSpec> => ({
+export const commandSpecs = (
+	dirs: RunspecDirs,
+): Record<string, CommandSpec> => ({
 	interview: {
 		description: "Interview the stakeholder and draft scenarios",
 		body: `Talk with me about the business area we are modelling. Ask one question at a time: what exists, what can happen, what must hold. Surface the awkward cases nobody mentions. Do not write any document.
@@ -16,12 +20,12 @@ End by listing every draft awaiting my approval, and remind me that approving a 
 		description: "Draft or amend a scenario",
 		body: `$ARGUMENTS
 
-Draft or amend that scenario. Use \`runspec scenario add "<title>"\` for a new one, or edit the existing file under scenarios/. Given/Then in the stakeholder's words, one behaviour per scenario, numbered Then steps. Never invent a rule the stakeholder has not stated. If something is unclear, ask me before writing.
+Draft or amend that scenario. Use \`runspec scenario add "<title>"\` for a new one, or edit the existing file under ${dirs.scenariosDir}/. Given/Then in the stakeholder's words, one behaviour per scenario, numbered Then steps. Never invent a rule the stakeholder has not stated. If something is unclear, ask me before writing.
 `,
 	},
 	model: {
 		description: "Draft the domain model from approved scenarios",
-		body: `Draft or update the domain model from the approved scenarios in scenarios/ and our conversation. Types for what exists, functions for what holds. Keep the model free of framework and I/O concerns.
+		body: `Draft or update the domain model from the approved scenarios in ${dirs.scenariosDir}/ and our conversation. Types for what exists, functions for what holds. Keep the model free of framework and I/O concerns.
 
 When I correct you, record the correction first with \`runspec decision add "<the rule>" --by "<me>" --because "<reason>"\`, then change the model.
 `,

@@ -1,12 +1,13 @@
 import { join } from "node:path";
 import { ensureDir, fileExists, writeText } from "../adapters/fs-store.js";
-import { agentsMd, pointerMd } from "./templates/agent-md.js";
+import { loadConfigOrDefault } from "./config.js";
+import { agentsMd, pointerMd, type RunspecDirs } from "./templates/agent-md.js";
 import { commandSpecs } from "./templates/commands.js";
 
 const claudeFrontmatter = (description: string): string =>
 	`---\ndescription: ${description}\n---\n`;
 
-const installClaude = (cwd: string): string[] => {
+const installClaude = (cwd: string, dirs: RunspecDirs): string[] => {
 	ensureDir(join(cwd, ".claude", "commands"));
 	const written: string[] = [];
 	const claudeMd = join(cwd, "CLAUDE.md");
@@ -14,7 +15,7 @@ const installClaude = (cwd: string): string[] => {
 		writeText(claudeMd, pointerMd);
 		written.push("CLAUDE.md");
 	}
-	for (const [name, spec] of Object.entries(commandSpecs())) {
+	for (const [name, spec] of Object.entries(commandSpecs(dirs))) {
 		const path = join(cwd, ".claude", "commands", `${name}.md`);
 		if (!fileExists(path)) {
 			writeText(path, `${claudeFrontmatter(spec.description)}${spec.body}`);
@@ -24,7 +25,7 @@ const installClaude = (cwd: string): string[] => {
 	return written;
 };
 
-const installCursor = (cwd: string): string[] => {
+const installCursor = (cwd: string, dirs: RunspecDirs): string[] => {
 	ensureDir(join(cwd, ".cursor", "rules"));
 	const path = join(cwd, ".cursor", "rules", "runspec.mdc");
 	if (fileExists(path)) {
@@ -32,7 +33,7 @@ const installCursor = (cwd: string): string[] => {
 	}
 	writeText(
 		path,
-		`---\ndescription: runspec process\nalwaysApply: true\n---\n${agentsMd}`,
+		`---\ndescription: runspec process\nalwaysApply: true\n---\n${agentsMd(dirs)}`,
 	);
 	return [path];
 };
@@ -46,12 +47,13 @@ const installGemini = (cwd: string): string[] => {
 	return [path];
 };
 
-const installers: Record<string, (cwd: string) => string[]> = {
-	claude: installClaude,
-	cursor: installCursor,
-	gemini: installGemini,
-	codex: () => [],
-};
+const installers: Record<string, (cwd: string, dirs: RunspecDirs) => string[]> =
+	{
+		claude: installClaude,
+		cursor: installCursor,
+		gemini: installGemini,
+		codex: () => [],
+	};
 
 export const runInstall = (cwd: string, args: string[]): number => {
 	const agent = args[0];
@@ -62,7 +64,12 @@ export const runInstall = (cwd: string, args: string[]): number => {
 		console.log("codex and anything else reading AGENTS.md needs no install.");
 		return 1;
 	}
-	const written = installer(cwd);
+	const config = loadConfigOrDefault(cwd);
+	if (!config.ok) {
+		console.log(config.error);
+		return 1;
+	}
+	const written = installer(cwd, config.value);
 	if (written.length === 0) {
 		console.log(`${agent}: nothing to do, already installed.`);
 	} else {

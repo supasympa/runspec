@@ -9,18 +9,19 @@ import {
 	parseScenario,
 	type Scenario,
 } from "../domain/scenario.js";
+import { loadConfigOrDefault, type RunspecConfig } from "./config.js";
 import { loadScenarios } from "./store.js";
 
 const usage =
 	"usage: runspec scenario add <title> | list | approve <id> --by <who>";
 
-const add = (cwd: string, args: string[]): number => {
+const add = (cwd: string, config: RunspecConfig, args: string[]): number => {
 	const title = args.join(" ").trim();
 	if (!title) {
 		console.log("usage: runspec scenario add <title>");
 		return 1;
 	}
-	const { items, errors } = loadScenarios(cwd);
+	const { items, errors } = loadScenarios(cwd, config);
 	for (const error of errors) {
 		console.log(error);
 	}
@@ -33,7 +34,7 @@ const add = (cwd: string, args: string[]): number => {
 		approvedHash: null,
 		body: "Given\nThen 1.",
 	};
-	const path = join(cwd, "scenarios", `${id}.md`);
+	const path = join(cwd, config.scenariosDir, `${id}.md`);
 	writeText(path, formatScenario(scenario));
 	console.log(path);
 	console.log(
@@ -42,8 +43,8 @@ const add = (cwd: string, args: string[]): number => {
 	return 0;
 };
 
-const list = (cwd: string): number => {
-	const { items, errors } = loadScenarios(cwd);
+const list = (cwd: string, config: RunspecConfig): number => {
+	const { items, errors } = loadScenarios(cwd, config);
 	for (const error of errors) {
 		console.log(error);
 	}
@@ -57,7 +58,11 @@ const list = (cwd: string): number => {
 	return 0;
 };
 
-const approve = (cwd: string, args: string[]): number => {
+const approve = (
+	cwd: string,
+	config: RunspecConfig,
+	args: string[],
+): number => {
 	const { values, positionals } = parseArgs({
 		args,
 		options: { by: { type: "string" } },
@@ -69,7 +74,7 @@ const approve = (cwd: string, args: string[]): number => {
 		console.log("usage: runspec scenario approve <id> --by <who>");
 		return 1;
 	}
-	const path = join(cwd, "scenarios", `${id}.md`);
+	const path = join(cwd, config.scenariosDir, `${id}.md`);
 	if (!fileExists(path)) {
 		console.log(`no scenario ${id}`);
 		return 1;
@@ -91,14 +96,19 @@ const approve = (cwd: string, args: string[]): number => {
 
 export const runScenario = (cwd: string, args: string[]): number => {
 	const [sub, ...rest] = args;
+	const config = loadConfigOrDefault(cwd);
+	if (!config.ok) {
+		console.log(config.error);
+		return 1;
+	}
 	if (sub === "add") {
-		return add(cwd, rest);
+		return add(cwd, config.value, rest);
 	}
 	if (sub === "list") {
-		return list(cwd);
+		return list(cwd, config.value);
 	}
 	if (sub === "approve") {
-		return approve(cwd, rest);
+		return approve(cwd, config.value, rest);
 	}
 	console.log(usage);
 	return 1;

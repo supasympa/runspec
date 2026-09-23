@@ -9,8 +9,8 @@ export const runStatus = (cwd: string): number => {
 		console.log(config.error);
 		return 1;
 	}
-	const scenarios = loadScenarios(cwd);
-	const decisions = loadDecisions(cwd);
+	const scenarios = loadScenarios(cwd, config.value);
+	const decisions = loadDecisions(cwd, config.value);
 	const markers = findMarkers(readTextFiles(config.value.testGlobs, cwd));
 	const seals = readSeals(cwd);
 	const approved = scenarios.items.filter(

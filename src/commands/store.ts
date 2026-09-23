@@ -4,6 +4,7 @@ import { type Decision, parseDecision } from "../domain/decision.js";
 import type { Source } from "../domain/identity.js";
 import { err, ok, type Result } from "../domain/result.js";
 import { parseScenario, type Scenario } from "../domain/scenario.js";
+import type { RunspecConfig } from "./config.js";
 
 export type LoadResult<T> = { items: T[]; errors: string[]; sources: Source[] };
 
@@ -26,11 +27,15 @@ const load = <T extends { id: string }>(
 	return loaded;
 };
 
-export const loadScenarios = (cwd: string): LoadResult<Scenario> =>
-	load(cwd, "scenarios", parseScenario);
+export const loadScenarios = (
+	cwd: string,
+	config: Pick<RunspecConfig, "scenariosDir">,
+): LoadResult<Scenario> => load(cwd, config.scenariosDir, parseScenario);
 
-export const loadDecisions = (cwd: string): LoadResult<Decision> =>
-	load(cwd, "decisions", parseDecision);
+export const loadDecisions = (
+	cwd: string,
+	config: Pick<RunspecConfig, "decisionsDir">,
+): LoadResult<Decision> => load(cwd, config.decisionsDir, parseDecision);
 
 export const readSeals = (
 	cwd: string,
