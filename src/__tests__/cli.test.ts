@@ -170,6 +170,31 @@ describe("the loop end to end", () => {
 		}
 	});
 
+	test("an existing AGENTS.md and CLAUDE.md are added to, once", () => {
+		const cwd = makeProject();
+		try {
+			writeText(join(cwd, "AGENTS.md"), "# Our rules\n\nBe kind.\n");
+			writeText(join(cwd, "CLAUDE.md"), "# Claude\n\nSee AGENTS.md.\n");
+			runInit(cwd);
+			runInit(cwd);
+			runInstall(cwd, ["claude"]);
+			runInstall(cwd, ["claude"]);
+
+			const agents = readText(join(cwd, "AGENTS.md"));
+			expect(agents.startsWith("# Our rules\n\nBe kind.\n")).toBe(true);
+			expect(agents).toContain("## runspec: the spec that runs");
+			expect(agents).toContain("### The loop");
+			expect(agents.split("<!-- runspec -->").length).toBe(2);
+
+			const claude = readText(join(cwd, "CLAUDE.md"));
+			expect(claude.startsWith("# Claude\n\nSee AGENTS.md.\n")).toBe(true);
+			expect(claude).toContain("Run `runspec check` before every commit.");
+			expect(claude.split("<!-- runspec -->").length).toBe(2);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("check fails outside an initialised project", () => {
 		const cwd = makeProject();
 		try {

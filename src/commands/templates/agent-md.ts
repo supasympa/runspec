@@ -39,3 +39,20 @@ Six prompts live in \`${dirs.commandsDir}/\` as plain markdown: \`interview\`, \
 
 export const pointerMd = `This project uses runspec. Read AGENTS.md and follow the process described there. Run \`runspec check\` before every commit.
 `;
+
+const sectionMarker = "<!-- runspec -->";
+
+const demoteHeadings = (markdown: string): string =>
+	markdown.replace(/^(#+) /gm, "#$1 ");
+
+/**
+ * Adds the runspec section to an agent file somebody else wrote, leaving
+ * their text untouched. Null when the section is already there.
+ */
+export const withRunspecSection = (
+	existing: string,
+	section: string,
+): string | null =>
+	existing.includes(sectionMarker)
+		? null
+		: `${existing.trimEnd()}\n\n${sectionMarker}\n${demoteHeadings(section)}`;

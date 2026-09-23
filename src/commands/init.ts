@@ -1,11 +1,12 @@
 import { join } from "node:path";
+import { writeAgentFile } from "../adapters/agent-file.js";
 import { ensureDir, fileExists, writeText } from "../adapters/fs-store.js";
 import {
 	configPath,
 	loadConfigOrDefault,
 	type RunspecConfig,
 } from "./config.js";
-import { agentsMd } from "./templates/agent-md.js";
+import { agentsMd, withRunspecSection } from "./templates/agent-md.js";
 import { commandSpecs } from "./templates/commands.js";
 
 const writeProjectFiles = (cwd: string, config: RunspecConfig): void => {
@@ -20,10 +21,7 @@ const writeProjectFiles = (cwd: string, config: RunspecConfig): void => {
 	if (!fileExists(configPath(cwd))) {
 		writeText(configPath(cwd), `${JSON.stringify(config, null, 2)}\n`);
 	}
-	const agentsMdPath = join(cwd, "AGENTS.md");
-	if (!fileExists(agentsMdPath)) {
-		writeText(agentsMdPath, agentsMd(config));
-	}
+	writeAgentFile(join(cwd, "AGENTS.md"), agentsMd(config), withRunspecSection);
 	for (const [name, spec] of Object.entries(commandSpecs(config))) {
 		const path = join(cwd, config.commandsDir, `${name}.md`);
 		if (!fileExists(path)) {

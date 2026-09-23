@@ -1,7 +1,13 @@
 import { join } from "node:path";
+import { writeAgentFile } from "../adapters/agent-file.js";
 import { ensureDir, fileExists, writeText } from "../adapters/fs-store.js";
 import { loadConfigOrDefault } from "./config.js";
-import { agentsMd, pointerMd, type RunspecDirs } from "./templates/agent-md.js";
+import {
+	agentsMd,
+	pointerMd,
+	type RunspecDirs,
+	withRunspecSection,
+} from "./templates/agent-md.js";
 import { commandSpecs } from "./templates/commands.js";
 
 const claudeFrontmatter = (description: string): string =>
@@ -10,9 +16,7 @@ const claudeFrontmatter = (description: string): string =>
 const installClaude = (cwd: string, dirs: RunspecDirs): string[] => {
 	ensureDir(join(cwd, ".claude", "commands"));
 	const written: string[] = [];
-	const claudeMd = join(cwd, "CLAUDE.md");
-	if (!fileExists(claudeMd)) {
-		writeText(claudeMd, pointerMd);
+	if (writeAgentFile(join(cwd, "CLAUDE.md"), pointerMd, withRunspecSection)) {
 		written.push("CLAUDE.md");
 	}
 	for (const [name, spec] of Object.entries(commandSpecs(dirs))) {
@@ -40,11 +44,7 @@ const installCursor = (cwd: string, dirs: RunspecDirs): string[] => {
 
 const installGemini = (cwd: string): string[] => {
 	const path = join(cwd, "GEMINI.md");
-	if (fileExists(path)) {
-		return [];
-	}
-	writeText(path, pointerMd);
-	return [path];
+	return writeAgentFile(path, pointerMd, withRunspecSection) ? [path] : [];
 };
 
 const installers: Record<string, (cwd: string, dirs: RunspecDirs) => string[]> =
