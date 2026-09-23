@@ -2,6 +2,7 @@
 import { runCheck } from "./commands/check.js";
 import { runDecision } from "./commands/decision.js";
 import { runInit } from "./commands/init.js";
+import { runInstall } from "./commands/install.js";
 import { runScenario } from "./commands/scenario.js";
 import { runSeal } from "./commands/seal.js";
 import { runStatus } from "./commands/status.js";
@@ -11,6 +12,7 @@ const usage = `runspec: the spec that runs
 usage: runspec <command>
 
   init                              set up scenarios/, decisions/, config and agent files
+  install <agent>                   adapt commands for claude, cursor, gemini or codex
   scenario add <title>              draft a new scenario
   scenario list                     list scenarios with status
   scenario approve <id> --by <who>  approve a scenario (approving it approves its test)
@@ -25,6 +27,7 @@ const [command = "help", ...args] = process.argv.slice(2);
 
 const commands: Record<string, () => number> = {
 	init: () => runInit(cwd),
+	install: () => runInstall(cwd, args),
 	scenario: () => runScenario(cwd, args),
 	decision: () => runDecision(cwd, args),
 	seal: () => runSeal(cwd),

@@ -2,10 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readText, writeText } from "../adapters/fs-store.js";
+import { fileExists, readText, writeText } from "../adapters/fs-store.js";
 import { runCheck } from "../commands/check.js";
 import { runDecision } from "../commands/decision.js";
 import { runInit } from "../commands/init.js";
+import { runInstall } from "../commands/install.js";
 import { runScenario } from "../commands/scenario.js";
 import { runSeal } from "../commands/seal.js";
 import { runStatus } from "../commands/status.js";
@@ -17,6 +18,9 @@ describe("the loop end to end", () => {
 		const cwd = makeProject();
 		try {
 			expect(runInit(cwd)).toBe(0);
+			expect(fileExists(join(cwd, "AGENTS.md"))).toBe(true);
+			expect(fileExists(join(cwd, "commands", "interview.md"))).toBe(true);
+			expect(fileExists(join(cwd, ".claude"))).toBe(false);
 
 			expect(runScenario(cwd, ["add", "sickness cancellation"])).toBe(0);
 			const s01 = join(cwd, "scenarios", "S-01.md");
@@ -72,6 +76,22 @@ describe("the loop end to end", () => {
 			expect(runSeal(cwd)).toBe(0);
 			expect(runCheck(cwd)).toBe(0);
 			expect(runStatus(cwd)).toBe(0);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("install adapts commands for an agent", () => {
+		const cwd = makeProject();
+		try {
+			expect(runInit(cwd)).toBe(0);
+			expect(runInstall(cwd, ["claude"])).toBe(0);
+			expect(fileExists(join(cwd, ".claude", "commands", "interview.md"))).toBe(
+				true,
+			);
+			expect(fileExists(join(cwd, "CLAUDE.md"))).toBe(true);
+			expect(runInstall(cwd, ["claude"])).toBe(0);
+			expect(runInstall(cwd, ["unknown-agent"])).toBe(1);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}

@@ -1,4 +1,4 @@
-export const claudeMd = `# runspec: the spec that runs
+export const agentsMd = `# runspec: the spec that runs
 
 This project uses runspec. The spec is not a document. It is four artefacts that run:
 
@@ -23,10 +23,10 @@ This project uses runspec. The spec is not a document. It is four artefacts that
 - Files matched by \`generatedGlobs\` in \`runspec.json\` are outputs. Never hand-edit them. Change the model, regenerate, then \`runspec seal\`.
 - \`runspec check\` must pass before every commit. It fails on tests without an approved scenario, approved scenarios without tests, unknown decision references, and hand-edited generated files.
 
-## Slash commands
+## Commands for agents
 
-/interview, /scenario, /model, /tests, /decide and /ask are defined in \`.claude/commands/\`.
+Six prompts live in \`commands/\` as plain markdown: \`interview\`, \`scenario\`, \`model\`, \`tests\`, \`decide\`, \`ask\`. Read and follow the one that matches the task. \`runspec install claude|cursor|gemini\` copies them into the native format for those agents. Anything that reads this file needs no install.
 `;
 
-export const agentsMd = `This project uses runspec. Read CLAUDE.md and follow the process described there. Run \`runspec check\` before every commit.
+export const pointerMd = `This project uses runspec. Read AGENTS.md and follow the process described there. Run \`runspec check\` before every commit.
 `;
