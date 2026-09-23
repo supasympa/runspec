@@ -51,6 +51,9 @@ describe("the loop end to end", () => {
 					"stable list",
 				]),
 			).toBe(0);
+			expect(readText(join(cwd, "decisions", "D-001.md"))).toMatch(
+				/^Date: \d{4}-\d{2}-\d{2}$/m,
+			);
 			writeText(join(cwd, "tests", "d001.test.ts"), "// runspec: D-001\n");
 			expect(runCheck(cwd)).toBe(0);
 

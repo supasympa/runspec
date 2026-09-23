@@ -34,6 +34,7 @@ const add = (cwd: string, args: string[]): number => {
 		id: nextDecisionId(items.map((d) => d.id)),
 		title,
 		decidedBy: values.by,
+		date: new Date().toISOString().slice(0, 10),
 		because: values.because,
 		supersedes: values.supersedes ?? null,
 	};
@@ -54,7 +55,7 @@ const list = (cwd: string): number => {
 	}
 	for (const d of items) {
 		const supersedes = d.supersedes ? ` (supersedes ${d.supersedes})` : "";
-		console.log(`${d.id}  ${d.title}${supersedes}`);
+		console.log(`${d.id}  ${d.date ?? "undated   "}  ${d.title}${supersedes}`);
 	}
 	return 0;
 };

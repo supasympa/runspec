@@ -21,6 +21,7 @@ const decision = (id: string): Decision => ({
 	id,
 	title: `decision ${id}`,
 	decidedBy: "someone",
+	date: "2026-09-22",
 	because: "reason",
 	supersedes: null,
 });
