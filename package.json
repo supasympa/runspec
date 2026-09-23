@@ -1,0 +1,20 @@
+{
+	"name": "runspec",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Prompts in, types out. The spec that runs.",
+	"type": "module",
+	"bin": {
+		"runspec": "./src/cli.ts"
+	},
+	"scripts": {
+		"test": "bun test",
+		"build": "tsc --noEmit",
+		"lint": "biome check src"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.15",
+		"@types/bun": "latest",
+		"typescript": "^7.0.2"
+	}
+}
